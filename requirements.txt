@@ -3,3 +3,4 @@ pandas
 webdriver-manager
 lxml
 html5lib
+math

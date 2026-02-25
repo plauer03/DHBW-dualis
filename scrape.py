@@ -2,6 +2,7 @@ import getpass
 import io
 import re
 import pandas as pd
+import math 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -19,8 +20,8 @@ def clean_text(text):
 def get_dualis_grades():
     print("--- DHBW Dualis Noten-Rechner ---")
 
-    user = input("Benutzername: ")
-    pwd = getpass.getpass("Passwort: ")
+    user = input("Benutzername: ") # or "your_email@gmx.de"
+    pwd = getpass.getpass("Passwort: ") # or "your_password"
 
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
@@ -44,9 +45,13 @@ def get_dualis_grades():
         driver.find_element(By.ID, "field_pass").send_keys(pwd)
         driver.find_element(By.ID, "logIn_btn").click()
 
-        WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Leistungsübersicht"))
-        ).click()
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Leistungsübersicht"))
+            ).click()
+        except:
+            print("Login failed. Please check your username and password.")
+            return
 
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.TAG_NAME, "table"))
@@ -112,11 +117,17 @@ def get_dualis_grades():
         raw_grade = str(row[grade_col]).replace(",", ".").strip()
         raw_ects = str(row[ects_col]).replace(",", ".").strip()
 
+        # ECTS in float konvertieren
         try:
             ects = float(raw_ects)
         except:
             continue
 
+        # Module mit 0 oder NaN ECTS überspringen
+        if ects == 0 or math.isnan(ects):
+            continue
+
+        # Nicht-bewertete / bestandene Module
         if raw_grade.lower() in ["b", "bestanden", "genehmigt"]:
             total_ects_all += ects
             print(f"{name[:50]:<50} | {'Pass':<5} | {ects:<5.1f}")
@@ -125,6 +136,7 @@ def get_dualis_grades():
         if raw_grade in ["", "nan"]:
             continue
 
+        # Note in float konvertieren
         try:
             grade = float(raw_grade)
         except:
